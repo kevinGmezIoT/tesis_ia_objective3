@@ -23,4 +23,4 @@ class TripletSampler(tordata.sampler.Sampler):
             yield sample_indices
 
     def __len__(self):
-        return self.dataset.data_size
+        return self.dataset.data_size // (self.batch_size[0] * self.batch_size[1])

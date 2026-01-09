@@ -22,10 +22,10 @@ margin: 0.3
 
 # Training hyperparameters
 lr: 0.0001
-epochs: 1
-batch_P: 2
-batch_K: 1
-total_iter: 1
+epochs: 30
+batch_P: 16
+batch_K: 8
+total_iter: 100000
 restore_iter: 0
-save_iter: 1
-plot_iter: 1
+save_iter: 100
+plot_iter: 10
