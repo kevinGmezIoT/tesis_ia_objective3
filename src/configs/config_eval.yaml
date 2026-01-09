@@ -1,0 +1,45 @@
+experiment:
+  name: gaitgl_experiment1
+
+data:
+  root: "D:/open_datasets/Gait3D/2D_Silhouettes/2D_Silhouettes"
+  index_csv: "inputs/sequences_gait3D.csv"
+  resolution: 64  # For silhouette images
+  sequence_len: 25  # Number of frames per sequence
+  num_workers: 1
+
+model:
+  name: "GaitGL"
+  hidden_dim: 256  # GaitGL specific
+  frame_num: 25    # Number of frames to process
+  img_size: 64     # Input image size (height=width)
+  hard_or_full_trip: "hard"  # Hard triplet mining
+
+train:
+  epochs: 60
+  batch:
+    P: 4           # Number of identities per batch
+    K: 2           # Number of sequences per identity
+  plot_freq: 10    # Frequency of plotting in epochs
+  optimizer:
+    name: adamw
+    lr: 0.0001
+    weight_decay: 0.05
+  scheduler:
+    name: cosine
+    warmup_epochs: 5
+
+loss:
+  triplet:
+    margin: 0.3
+    weight: 1.0
+
+eval:
+  normalize_embeddings: true
+
+# Paths
+dataset_raw: "data/CASIA-B-raw"
+dataset_preprocessed: "data/CASIA-B-preprocessed"
+work_dir: "runs/checkpoints"
+plots_dir: "runs/plots"
+checkpoint: "runs/checkpoints/encoder.ptm"
