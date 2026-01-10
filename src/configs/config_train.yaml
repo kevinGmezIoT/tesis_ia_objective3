@@ -1,5 +1,5 @@
 # Experiment configuration
-save_name: "setnet_gait3d_experiment_128_1"
+save_name: "setnet_gait3d_experiment_256_1"
 model_name: "SetNet"
 work_dir: "runs/checkpoints"
 plots_dir: "runs/plots"
@@ -16,15 +16,15 @@ pid_shuffle: false
 train_pid_num: 3000
 
 # Model configuration
-hidden_dim: 128  # Configurable output feature dimension
+hidden_dim: 256  # Configurable output feature dimension
 hard_or_full_trip: "hard"
 margin: 0.3
 
 # Training hyperparameters
 lr: 0.0001
 epochs: 30
-batch_P: 16
-batch_K: 8
+batch_P: 8
+batch_K: 4
 total_iter: 100000
 restore_iter: 0
 save_iter: 100

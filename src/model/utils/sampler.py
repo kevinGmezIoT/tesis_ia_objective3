@@ -8,7 +8,7 @@ class TripletSampler(tordata.sampler.Sampler):
         self.batch_size = batch_size
 
     def __iter__(self):
-        while (True):
+        for _ in range(len(self)):
             sample_indices = list()
             pid_list = random.sample(
                 list(self.dataset.label_set),
