@@ -50,5 +50,5 @@ class TripletLoss(nn.Module):
     def batch_dist(self, x):
         x2 = torch.sum(x ** 2, 2)
         dist = x2.unsqueeze(2) + x2.unsqueeze(2).transpose(1, 2) - 2 * torch.matmul(x, x.transpose(1, 2))
-        dist = torch.sqrt(F.relu(dist))
+        dist = torch.sqrt(F.relu(dist) + 1e-8)
         return dist

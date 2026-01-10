@@ -1,4 +1,4 @@
-from .metrics import compute_metrics, compute_ap
+from .metrics import calculate_map, calculate_inter_intra_ratio
 from .logger import setup_logger
 
-__all__ = ['compute_metrics', 'compute_ap', 'setup_logger']
+__all__ = ['calculate_map', 'calculate_inter_intra_ratio', 'setup_logger']

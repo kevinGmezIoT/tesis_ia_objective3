@@ -81,8 +81,13 @@ class Model:
         }
 
         print(train_pid_num)
-        # self.m_resnet = vgg_c3d.c3d_vgg_Fusion(num_classes=self.train_pid_num)
-        self.m_resnet = SetNet(hidden_dim=self.hidden_dim)
+        if self.model_name == "SetNet":
+            self.m_resnet = SetNet(hidden_dim=self.hidden_dim)
+        elif self.model_name == "Vgg_c3d":
+            self.m_resnet = vgg_c3d.c3d_vgg_Fusion(num_classes=self.train_pid_num)
+        else:
+            raise ValueError(f"Unknown model name: {self.model_name}")
+            
         print("CUDA available:", torch.cuda.is_available())
         print("Device count:", torch.cuda.device_count())
         
@@ -98,15 +103,6 @@ class Model:
         if torch.cuda.is_available():
             self.triplet_loss = nn.DataParallel(self.triplet_loss)
             self.triplet_loss.cuda()
-
-        self.hard_loss_metric = []
-        self.full_loss_metric = []
-        self.full_loss_num = []
-        self.dist_list = []
-        self.full_loss_num = []
-        self.dist_list = []
-        self.mean_dist = 0.01
-        self.accuracy_list = []
 
         self.optimizer = optim.Adam([
             {'params': self.m_resnet.parameters()}], lr=self.lr)

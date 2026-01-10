@@ -192,6 +192,10 @@ class C3D_VGG(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 2, 0).contiguous()
         # print('feature',feature.shape)
+        
+        # L2 Normalization + Scaling
+        feature = F.normalize(feature, p=2, dim=-1)
+        feature = 16.0 * feature
 
         return feature,None
 

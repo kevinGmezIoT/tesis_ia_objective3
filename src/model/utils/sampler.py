@@ -15,7 +15,7 @@ class TripletSampler(tordata.sampler.Sampler):
                 self.batch_size[0])
             for pid in pid_list:
                 _index = self.dataset.index_dict.loc[pid, :, :].values
-                _index = _index[_index > 0].flatten().tolist()
+                _index = _index[_index >= 0].flatten().tolist()
                 _index = random.choices(
                     _index,
                     k=self.batch_size[1])
