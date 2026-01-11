@@ -359,20 +359,14 @@ class Model:
                 seq = Variable(seq.cuda())
                 # batcht,channelt,framet,ht,wt = seq.size()
                 outputs,_ = self.m_resnet(seq)
-                # outputs = self.m_resnet(seq)
-                if counttt%1000==0:
-                    print(label, seq_type,view,'--',outputs.shape)
-                counttt +=1
-                n,_,_ = outputs.size()
-                # n,_ = outputs.size()
-                outputs = outputs.view(n,-1)
-                # outputs = outputs.view(n*hpp,-1)
-                # print('outputs2-',outputs.shape)
-                outputs = torch.mean(outputs,dim=0)
-                outputs = outputs.unsqueeze(0)
-                n,_ = outputs.size()
-                # print(outputs.view(n, -1).shape)
+                if counttt % 1000 == 0:
+                    print(label, seq_type, view, '--', outputs.shape)
+                counttt += 1
+                
+                # outputs: [batch, bins, dim] -> [batch, bins * dim]
+                n, bins, dim = outputs.size()
                 outputs = outputs.view(n, -1).data.cpu().numpy()
+                
                 feature_list.append(outputs)
                 view_list += view
                 seq_type_list += seq_type

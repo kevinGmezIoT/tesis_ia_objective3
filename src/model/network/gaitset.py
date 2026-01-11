@@ -117,8 +117,7 @@ class SetNet(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
 
-        # L2 Normalization + Scaling
+        # L2 Normalization
         feature = nn.functional.normalize(feature, p=2, dim=-1)
-        feature = 16.0 * feature
 
         return feature, None

@@ -143,6 +143,8 @@ class C3D_VGG(nn.Module):
 
     def forward(self, x):
         # print(x.shape)
+        if x.dim() == 4:
+            x = x.unsqueeze(1)
         n, c, t, h, w = x.size()
         if t == 1:
             x = x.repeat(1, 1, 3, 1, 1)
@@ -191,12 +193,10 @@ class C3D_VGG(nn.Module):
         feature = torch.cat(feature, 2).permute(2, 0, 1).contiguous()
         # print('feature',feature.shape)
         feature = feature.matmul(self.fc_bin[0])
-        feature = feature.permute(1, 2, 0).contiguous()
-        # print('feature',feature.shape)
+        feature = feature.permute(1, 0, 2).contiguous()
         
-        # L2 Normalization + Scaling
+        # L2 Normalization
         feature = F.normalize(feature, p=2, dim=-1)
-        feature = 16.0 * feature
 
         return feature,None
 

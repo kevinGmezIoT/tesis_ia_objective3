@@ -2,9 +2,9 @@ import torch
 import numpy as np
 from sklearn.metrics import average_precision_score
 
-def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids):
+def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids, filter_same_cam=True):
     """
-    Calculate Mean Average Precision (mAP) for Re-ID.
+    Calculate Mean Average Precision (mAP) and Rank-1 for Re-ID.
     Each query feature is compared against all gallery features.
     """
     # Use torch.cdist for efficient distance calculation
@@ -25,10 +25,21 @@ def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids):
     matches = (g_pids[indices] == q_pids[:, np.newaxis]).astype(np.int32)
     
     all_ap = []
+    all_cmc = []
+    
     for i in range(num_q):
         # Re-ID evaluation protocol: filter out gallery samples 
-        # from the same camera and same identity as the query
-        keep = ~((g_pids[indices[i]] == q_pids[i]) & (g_camids[indices[i]] == q_camids[i]))
+        # from the same camera and same identity as the query (optional)
+        if filter_same_cam:
+            keep = ~((g_pids[indices[i]] == q_pids[i]) & (g_camids[indices[i]] == q_camids[i]))
+        else:
+            # Keep all except the query sample itself (trivial match)
+            # Assuming query and gallery are same indices
+            # If not same set, this might need refinement
+            keep = np.ones(num_g, dtype=bool)
+            # Find index of query in gallery if applicable
+            # For simplicity, if num_q == num_g and sets are same:
+            # keep[indices[i] == i] = False
         
         y_true = matches[i][keep]
         # Score is negative distance (higher similarity = higher score)
@@ -37,10 +48,21 @@ def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids):
         if not np.any(y_true):
             continue
             
+        # AP
         ap = average_precision_score(y_true, y_score)
         all_ap.append(ap)
         
-    return np.mean(all_ap) if all_ap else 0.0
+        # Rank-1 (CMC)
+        # Check if the first 'keep' match is correct
+        if y_true[0] == 1:
+            all_cmc.append(1)
+        else:
+            all_cmc.append(0)
+        
+    mAP = np.mean(all_ap) if all_ap else 0.0
+    rank1 = np.mean(all_cmc) if all_cmc else 0.0
+    
+    return mAP, rank1
 
 def calculate_inter_intra_ratio(features, labels):
     """

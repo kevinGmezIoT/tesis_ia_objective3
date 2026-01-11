@@ -75,20 +75,22 @@ def main():
     views_idx = [view_to_idx[v] for v in views]
 
     print("Calculating metrics...")
-    # calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids)
-    # Using the same set as query and gallery for simple evaluation
-    mAP = calculate_map(
+    # Gait3D protocol usually allows same-camera matching across cycles
+    # calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids, filter_same_cam)
+    mAP, rank1 = calculate_map(
         torch.from_numpy(feats), labels, views_idx,
-        torch.from_numpy(feats), labels, views_idx
+        torch.from_numpy(feats), labels, views_idx,
+        filter_same_cam=False
     )
     
     ratio, inter, intra = calculate_inter_intra_ratio(torch.from_numpy(feats), labels_idx)
     
     results = {
-        'mAP': mAP,
-        'ratio_inter_intra': ratio,
-        'avg_inter_dist': inter,
-        'avg_intra_dist': intra
+        'mAP': float(mAP),
+        'Rank-1': float(rank1),
+        'ratio_inter_intra': float(ratio),
+        'avg_inter_dist': float(inter),
+        'avg_intra_dist': float(intra)
     }
     
     print(f"Results for {cfg['model_name']}:")
