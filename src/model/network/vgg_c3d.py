@@ -93,8 +93,9 @@ class LocaltemporalAG(nn.Module):
 
 class C3D_VGG(nn.Module):
 
-    def __init__(self, num_classes=74):
+    def __init__(self, hidden_dim=256, num_classes=74):
         super(C3D_VGG, self).__init__()
+        self.hidden_dim = hidden_dim
         _set_channels = [32, 64, 128, 256]
 
         # --------------------------------  2d gei---------------------------------------
@@ -122,7 +123,7 @@ class C3D_VGG(nn.Module):
         self.fc_bin = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.zeros(sum(self.bin_numgl), _set_channels[3], _set_channels[3])))
+                    torch.zeros(sum(self.bin_numgl), _set_channels[3], self.hidden_dim)))
                     ])
                 
 
@@ -220,7 +221,7 @@ def c3d_vgg_Fusion(**kwargs):
 
 
 if __name__ == "__main__":
-    net = c3d_vgg_Fusion(num_classes=74)
+    net = c3d_vgg_Fusion(hidden_dim=256, num_classes=74)
     print(params_count(net))
     with torch.no_grad():
         # x = torch.ones(4*3*16*64*44).reshape(4,3,16,64,44)

@@ -84,7 +84,7 @@ class Model:
         if self.model_name == "SetNet":
             self.m_resnet = SetNet(hidden_dim=self.hidden_dim)
         elif self.model_name == "Vgg_c3d":
-            self.m_resnet = vgg_c3d.c3d_vgg_Fusion(num_classes=self.train_pid_num)
+            self.m_resnet = vgg_c3d.c3d_vgg_Fusion(hidden_dim=self.hidden_dim, num_classes=self.train_pid_num)
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
             
