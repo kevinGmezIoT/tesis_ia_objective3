@@ -108,10 +108,10 @@ class Model:
             self.triplet_loss.cuda()
 
         self.optimizer = optim.Adam([
-            {'params': self.m_resnet.parameters()}], lr=self.lr)
+            {'params': self.m_resnet.parameters()}], lr=self.lr, weight_decay=5e-4)
         
-        # Loss function for classification head
-        self.id_loss = nn.CrossEntropyLoss()
+        # Loss function for classification head with Label Smoothing
+        self.id_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
         
         # Learning Rate scheduler (reduce learning rate periodically)
         self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)

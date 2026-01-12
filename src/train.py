@@ -69,6 +69,8 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         
         if loss > 1e-9:
             loss.backward()
+            # Gradient clipping to prevent explosion (NaN)
+            torch.nn.utils.clip_grad_norm_(model_obj.m_resnet.parameters(), max_norm=5.0)
             model_obj.optimizer.step()
         
         epoch_metrics['loss'].append(loss.item())

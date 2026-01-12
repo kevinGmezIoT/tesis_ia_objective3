@@ -18,11 +18,11 @@ train_pid_num: 3000
 # Model configuration
 hidden_dim: 256  # Configurable output feature dimension
 hard_or_full_trip: "hard"
-margin: 0.3
+margin: 0.5
 
 # Training hyperparameters
-lr: 0.001
-epochs: 60
+lr: 0.0003
+epochs: 25
 batch_P: 8
 batch_K: 4
 total_iter: 100000

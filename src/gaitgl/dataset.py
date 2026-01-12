@@ -60,28 +60,29 @@ class DataSet(tordata.Dataset):
             a = self.img2xarray(
                 path).astype('float32') / 255.0  
             return a          
-    def __getitem__(self, index):
-        # pose sequence sampling
-        # print(self.cache)
+        # Random Horizontal Flip Augmentation (Sequence-level)
+        # Only during training (we can check if 'train' is in the path or just assume based on usage)
+        do_flip = False
+        if self.cache is False: # Simple heuristic: if not caching, it's likely training with random sampling
+             if np.random.random() > 0.5:
+                 do_flip = True
+
         if not self.cache:
-            # print('-1-')
-            # print(self.seq_dir[index])
             data = [self.__loader__(_path) for _path in self.seq_dir[index]]
+            if do_flip:
+                data = [f[:, :, ::-1] for f in data] # Flip width dimension
             frame_set = [set(feature.coords['frame'].values.tolist()) for feature in data]
             frame_set = list(set.intersection(*frame_set))
         elif self.data[index] is None:
-            # print('-2-')
             data = [self.__loader__(_path) for _path in self.seq_dir[index]]
             frame_set = [set(feature.coords['frame'].values.tolist()) for feature in data]
             frame_set = list(set.intersection(*frame_set))
             self.data[index] = data
             self.frame_set[index] = frame_set
         else:
-            # print('-3-')
             data = self.data[index]
             frame_set = self.frame_set[index]
-        # print(self.label[index], self.seq_type[index],self.view[
-        #     index],len(frame_set),data[0].shape)
+
         return data, frame_set, self.view[
             index], self.seq_type[index], self.label[index],
 

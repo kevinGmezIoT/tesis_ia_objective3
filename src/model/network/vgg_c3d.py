@@ -19,6 +19,7 @@ class GeM(nn.Module):
     def __init__(self, p=6.5, eps=1e-6):
         super(GeM,self).__init__()
         self.p = Parameter(torch.ones(1)*p)
+        self.p.requires_grad = False # Freeze p to prevent NaN during training
         self.eps = eps
 
     def forward(self, x):
