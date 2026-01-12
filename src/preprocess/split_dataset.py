@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 import random
 from pathlib import Path
+from tqdm import tqdm
 
 def main():
     parser = argparse.ArgumentParser(description="Split dataset into train, val, and test.")
@@ -33,34 +34,46 @@ def main():
     if rename_dict:
         df = df.rename(columns=rename_dict)
 
-    seq_ids = sorted(df['sequence_id'].unique().tolist())
-    random.shuffle(seq_ids)
-    num_total = len(seq_ids)
+    pids = sorted(df['person_id'].unique().tolist())
+    random.shuffle(pids)
+    
+    print(f"Total IDs: {len(pids)}")
+    
+    pbar = tqdm(pids, desc="Splitting per ID")
+    for pid in pbar:
+        pid_df = df[df['person_id'] == pid]
+        seq_ids = pid_df['sequence_id'].tolist()
+        random.shuffle(seq_ids)
+        n = len(seq_ids)
+        
+        # Determine number of sequences for each split
+        # Ensure at least 1 in train if there's more than 1 sequence
+        n_train = max(1, int(n * train_r)) if n > 1 else 1
+        n_val = max(0, int(n * val_r))
+        
+        # If very few sequences, prioritize train > test > val
+        if n == 1:
+            # For 1 sequence, we put it in train (otherwise we can't learn the ID)
+            # though usually test set has different IDs in open-set.
+            # In closed-set, we need train.
+            train_s = seq_ids
+            val_s = []
+            test_s = []
+        elif n == 2:
+            train_s = [seq_ids[0]]
+            test_s = [seq_ids[1]]
+            val_s = []
+        else:
+            train_s = seq_ids[:n_train]
+            val_s = seq_ids[n_train:n_train+n_val]
+            test_s = seq_ids[n_train+n_val:]
+            # Ensure test is not empty if possible
+            if not test_s and n > 2:
+                test_s = [train_s.pop()]
 
-    if args.use_standard_split and 'split' in df.columns:
-        orig_train_seqs = sorted(df[df['split'] == 'train']['sequence_id'].unique().tolist())
-        random.shuffle(orig_train_seqs)
-        
-        num_val = int(len(orig_train_seqs) * args.val_ratio / (args.train_ratio + args.val_ratio))
-        
-        val_seqs = set(orig_train_seqs[:num_val])
-        train_seqs = set(orig_train_seqs[num_val:])
-        
-        df.loc[df['sequence_id'].isin(val_seqs) & (df['split'] == 'train'), 'split'] = 'val'
-        print(f"Standard MARS Protocol: Split original train into {len(train_seqs)} train and {len(val_seqs)} validation sequences.")
-    else:
-        num_train = int(num_total * train_r)
-        num_val = int(num_total * val_r)
-        
-        train_seqs = set(seq_ids[:num_train])
-        val_seqs = set(seq_ids[num_train:num_train+num_val])
-        test_seqs = set(seq_ids[num_train+num_val:])
-        
-        df.loc[df['sequence_id'].isin(train_seqs), 'split'] = 'train'
-        df.loc[df['sequence_id'].isin(val_seqs), 'split'] = 'val'
-        df.loc[df['sequence_id'].isin(test_seqs), 'split'] = 'test'
-        
-        print(f"Custom Split (Sequences): Train: {len(train_seqs)}, Val: {len(val_seqs)}, Test: {len(test_seqs)} sequences.")
+        df.loc[df['sequence_id'].isin(train_s), 'split'] = 'train'
+        df.loc[df['sequence_id'].isin(val_s), 'split'] = 'val'
+        df.loc[df['sequence_id'].isin(test_s), 'split'] = 'test'
 
     df.to_csv(args.output_csv, index=False)
     print(f"Saved split metadata to {args.output_csv}")

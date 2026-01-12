@@ -35,9 +35,10 @@ class SetNet(nn.Module):
                     torch.zeros(sum(self.bin_num), _set_channels[2], self.hidden_dim)))
             for _ in range(2)])
         
+        # BNNeck
+        self.bn = nn.BatchNorm1d(self.hidden_dim)
         # Classification head for ID supervision
-        # SetNet extracts features from 2 branches (Global and Local) for each bin.
-        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_num) * 2, num_classes)
+        self.fc_id = nn.Linear(self.hidden_dim, num_classes)
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Conv1d)):
@@ -122,10 +123,12 @@ class SetNet(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
 
-        # L2 Normalization
+        # Global feature for classification (BNNeck style)
+        feat_global = feature.mean(1)
+        feat_bn = self.bn(feat_global)
+        logits = self.fc_id(feat_bn)
+
+        # L2 Normalization ONLY for the Triplet branch
         feature = nn.functional.normalize(feature, p=2, dim=-1)
-        
-        # Logits for CrossEntropy
-        logits = self.fc_id(feature.view(n, -1))
 
         return feature, logits

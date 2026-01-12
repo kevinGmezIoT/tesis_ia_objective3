@@ -21,8 +21,8 @@ hard_or_full_trip: "hard"
 margin: 0.3
 
 # Training hyperparameters
-lr: 0.0001
-epochs: 30
+lr: 0.001
+epochs: 60
 batch_P: 8
 batch_K: 4
 total_iter: 100000

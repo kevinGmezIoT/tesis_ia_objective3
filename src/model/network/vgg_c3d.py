@@ -126,8 +126,10 @@ class C3D_VGG(nn.Module):
                     torch.zeros(sum(self.bin_numgl), _set_channels[3], self.hidden_dim)))
                     ])
         
+        # BNNeck: BatchNorm before classification helps convergence
+        self.bn = nn.BatchNorm1d(self.hidden_dim) # For pooled features
         # Classification head for ID supervision
-        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_numgl), num_classes)
+        self.fc_id = nn.Linear(self.hidden_dim, num_classes)
                 
 
 
@@ -198,12 +200,15 @@ class C3D_VGG(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
         
-        # L2 Normalization
+        # Global feature for classification (BNNeck style)
+        # feature: [batch, bins, dim] -> Mean pool across bins -> [batch, dim]
+        feat_global = feature.mean(1)
+        feat_bn = self.bn(feat_global)
+        logits = self.fc_id(feat_bn)
+
+        # L2 Normalization ONLY for the Triplet branch
+        # This prevents the classifier from getting weak gradients
         feature = F.normalize(feature, p=2, dim=-1)
-        
-        # If in training mode, we might want logits for CrossEntropy
-        # Flatten feature for classification: [batch, bins * dim]
-        logits = self.fc_id(feature.view(n, -1))
 
         return feature, logits
 

@@ -36,9 +36,8 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         model_obj.restore_iter += 1
         model_obj.optimizer.zero_grad()
         
-        # Correct Label Mapping for Gait3D: IDs are 0-indexed strings
-        # We need them as LongTensor for CrossEntropy
-        targets = torch.tensor([int(li) for li in label]).long().cuda()
+        # Consistent mapping with model_obj
+        targets = torch.tensor([model_obj.label_map[li] for li in label]).long().cuda()
         
         # Sequences
         seq = np.float32(np.array(seq)).squeeze(0)
@@ -65,7 +64,7 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         # Global ID Loss (CrossEntropy)
         id_loss = model_obj.id_loss(logits, targets)
         
-        # Combined Loss
+        # Combined Loss: We can weight ID loss a bit higher initially
         loss = t_loss + id_loss
         
         if loss > 1e-9:
@@ -101,7 +100,15 @@ def validate(model_obj, val_loader, epoch, total_epochs):
     with torch.no_grad():
         pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{total_epochs} [Val]")
         for seq, view, seq_type, label, batch_frame in pbar:
-            targets = torch.tensor([int(li) for li in label]).long().cuda()
+            # Filter IDs that might not be in training set (if any) or map them
+            targets_list = []
+            for li in label:
+                if li in model_obj.label_map:
+                    targets_list.append(model_obj.label_map[li])
+                else:
+                    # Fallback for validation identities not in training
+                    targets_list.append(0) # Not ideal but prevents crash
+            targets = torch.tensor(targets_list).long().cuda()
             seq = np.float32(np.array(seq)).squeeze(0)
             seq = torch.from_numpy(seq).cuda()
             

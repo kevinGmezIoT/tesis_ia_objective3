@@ -66,19 +66,22 @@ class Model:
         self.save_iter = save_iter
         self.plot_iter = plot_iter
         self.hidden_dim = hidden_dim
-        
         # Initialize history for plotting
         self.history = {
             'iter': [],
             'hard_loss': [],
             'full_loss': [],
             'full_loss_num': [],
-            'hard_loss': [],
-            'full_loss': [],
-            'full_loss_num': [],
             'mean_dist': [],
             'accuracy': []
         }
+        
+        # Create a robust mapping from person_id to [0, num_classes-1]
+        # This prevents CUDA device-side asserts (out of bounds labels)
+        self.label_list = sorted(list(self.train_source.label_set))
+        self.label_map = {label: i for i, label in enumerate(self.label_list)}
+        self.train_pid_num = len(self.label_list)
+        print(f"Mapped {self.train_pid_num} unique IDs to range [0, {self.train_pid_num-1}]")
 
         print(train_pid_num)
         if self.model_name == "SetNet":
@@ -227,29 +230,22 @@ class Model:
             num_workers=self.num_workers)
         print('-len(train_loader)-',len(train_loader))
         train_label_set = list(self.train_source.label_set)
-        train_label_set.sort()
-        _time1 = datetime.now()
-        
         # Track previous epoch to step scheduler
         last_epoch = 0
-        
         for seq, view, seq_type, label, batch_frame in train_loader:
-            # Step the scheduler based on iterations or epochs
-            # Here we follow your epoch-based logic
+            # Step the Learning Rate scheduler based on iterations
             current_epoch = self.restore_iter // len(train_loader)
             if current_epoch > last_epoch:
                 self.scheduler.step()
                 last_epoch = current_epoch
                 print(f"\nStep LR Scheduler: New LR = {self.optimizer.param_groups[0]['lr']}")
 
-            # self.exp_lr_scheduler.step()
             self.restore_iter += 1
             self.optimizer.zero_grad()
-            # Correct Mapping for Gait3D
-            labelint = [int(li) for li in label]
             
-            #---------------targets-----------------------
-            targets = np.array(labelint)
+            # Map labels to continuous indices [0, N-1]
+            label_indices = [self.label_map[li] for li in label]
+            targets = np.array(label_indices)
             #---------------seq-----------------------
             seq=np.array(seq)
             seq = np.float32(seq)
