@@ -36,9 +36,8 @@ class SetNet(nn.Module):
             for _ in range(2)])
         
         # Classification head for ID supervision
-        # train_pid_num should be passed or used. SetNet currently doesn't take it in __init__.
-        # I'll add a default or use a standard value, but better to update __init__ signature.
-        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_num), num_classes) # Placeholder size, will fix
+        # SetNet extracts features from 2 branches (Global and Local) for each bin.
+        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_num) * 2, num_classes)
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Conv1d)):

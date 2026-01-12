@@ -26,6 +26,8 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
     
     epoch_metrics = {
         'loss': [],
+        't_loss': [],
+        'id_loss': [],
         'acc': []
     }
     
@@ -34,9 +36,9 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         model_obj.restore_iter += 1
         model_obj.optimizer.zero_grad()
         
-        # Labels to int
-        labelint = [int(li)-1 for li in label]
-        targets = torch.from_numpy(np.array(labelint)).cuda()
+        # Correct Label Mapping for Gait3D: IDs are 0-indexed strings
+        # We need them as LongTensor for CrossEntropy
+        targets = torch.tensor([int(li) for li in label]).long().cuda()
         
         # Sequences
         seq = np.float32(np.array(seq)).squeeze(0)
@@ -45,10 +47,10 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         targets = Variable(targets)
         seq = Variable(seq)
         
-        # Forward
-        triplet_feature, _ = model_obj.m_resnet(seq)
+        # Forward - now returns features and logits
+        triplet_feature, logits = model_obj.m_resnet(seq)
         
-        # Triplet Loss
+        # Triplet Loss part
         triplet_feature = triplet_feature.permute(1, 0, 2).contiguous()
         triplet_label = targets.unsqueeze(0).repeat(triplet_feature.size(0), 1)
         
@@ -56,20 +58,30 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
          ) = model_obj.triplet_loss(triplet_feature, triplet_label)
         
         if model_obj.hard_or_full_trip == 'hard':
-            loss = hard_loss_metric.mean()
+            t_loss = hard_loss_metric.mean()
         else:
-            loss = full_loss_metric.mean()
+            t_loss = full_loss_metric.mean()
+            
+        # Global ID Loss (CrossEntropy)
+        id_loss = model_obj.id_loss(logits, targets)
+        
+        # Combined Loss
+        loss = t_loss + id_loss
         
         if loss > 1e-9:
             loss.backward()
             model_obj.optimizer.step()
         
         epoch_metrics['loss'].append(loss.item())
+        epoch_metrics['t_loss'].append(t_loss.item())
+        epoch_metrics['id_loss'].append(id_loss.item())
         epoch_metrics['acc'].append(accuracy.mean().item())
         
         pbar.set_postfix({
-            'loss': f"{np.mean(epoch_metrics['loss']):.4f}",
-            'acc': f"{np.mean(epoch_metrics['acc']):.4f}"
+            'L': f"{np.mean(epoch_metrics['loss']):.3f}",
+            'T': f"{np.mean(epoch_metrics['t_loss']):.3f}",
+            'ID': f"{np.mean(epoch_metrics['id_loss']):.3f}",
+            'acc': f"{np.mean(epoch_metrics['acc']):.3f}"
         })
         
     return np.mean(epoch_metrics['loss']), np.mean(epoch_metrics['acc'])
@@ -79,7 +91,7 @@ def validate(model_obj, val_loader, epoch, total_epochs):
         return 0, 0
         
     model_obj.m_resnet.eval()
-    model_obj.sample_type = 'random' # Usamos random sampling para validación rápida
+    model_obj.sample_type = 'random'
     
     val_metrics = {
         'loss': [],
@@ -89,19 +101,20 @@ def validate(model_obj, val_loader, epoch, total_epochs):
     with torch.no_grad():
         pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{total_epochs} [Val]")
         for seq, view, seq_type, label, batch_frame in pbar:
-            labelint = [int(li)-1 for li in label]
-            targets = torch.from_numpy(np.array(labelint)).cuda()
+            targets = torch.tensor([int(li) for li in label]).long().cuda()
             seq = np.float32(np.array(seq)).squeeze(0)
             seq = torch.from_numpy(seq).cuda()
             
-            triplet_feature, _ = model_obj.m_resnet(seq)
+            triplet_feature, logits = model_obj.m_resnet(seq)
             triplet_feature = triplet_feature.permute(1, 0, 2).contiguous()
             triplet_label = targets.unsqueeze(0).repeat(triplet_feature.size(0), 1)
             
             (full_loss_metric, hard_loss_metric, _, _, accuracy
              ) = model_obj.triplet_loss(triplet_feature, triplet_label)
             
-            loss = hard_loss_metric.mean() if model_obj.hard_or_full_trip == 'hard' else full_loss_metric.mean()
+            t_loss = hard_loss_metric.mean() if model_obj.hard_or_full_trip == 'hard' else full_loss_metric.mean()
+            id_loss = model_obj.id_loss(logits, targets)
+            loss = t_loss + id_loss
             
             val_metrics['loss'].append(loss.item())
             val_metrics['acc'].append(accuracy.mean().item())
@@ -185,6 +198,10 @@ def main():
     for epoch in range(epochs):
         t_loss, t_acc = train_epoch(model_obj, train_loader, epoch, epochs)
         v_loss, v_acc = validate(model_obj, val_loader, epoch, epochs)
+        
+        # Step the Learning Rate scheduler
+        model_obj.scheduler.step()
+        print(f"Epoch {epoch+1} complete. New LR: {model_obj.optimizer.param_groups[0]['lr']}")
         
         history['train_loss'].append(float(t_loss))
         history['train_acc'].append(float(t_acc))

@@ -1,0 +1,31 @@
+# Experiment configuration
+save_name: "vggc3d_gait3d_experiment_512_2"
+model_name: "Vgg_c3d"
+work_dir: "runs/checkpoints"
+plots_dir: "runs/plots"
+
+# Dataset configuration
+dataset: "Gait3D"
+data_root: "C:/open_datasets/2D_Silhouettes_cycles"
+index_csv: "inputs/sequences_gait3D_split.csv"
+resolution: 64
+frame_num: 25
+num_workers: 4
+pid_num: 3000
+pid_shuffle: false
+train_pid_num: 3000
+
+# Model configuration
+hidden_dim: 512  # Configurable output feature dimension
+hard_or_full_trip: "hard"
+margin: 0.5
+
+# Training hyperparameters
+lr: 0.0001
+epochs: 40
+batch_P: 8
+batch_K: 8
+total_iter: 100000
+restore_iter: 0
+save_iter: 100
+plot_iter: 10

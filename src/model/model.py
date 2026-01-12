@@ -245,14 +245,9 @@ class Model:
             # self.exp_lr_scheduler.step()
             self.restore_iter += 1
             self.optimizer.zero_grad()
-            labelint = []
-            if self.train_pid_num==5153:
-                for li in label:
-                    labelint.append((int(li)-1)//2)              
-            else:
-                for li in label:
-                    labelint.append(int(li)-1)
-            # print(labelint)
+            # Correct Mapping for Gait3D
+            labelint = [int(li) for li in label]
+            
             #---------------targets-----------------------
             targets = np.array(labelint)
             #---------------seq-----------------------

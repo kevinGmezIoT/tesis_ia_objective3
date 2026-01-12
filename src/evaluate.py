@@ -63,10 +63,8 @@ def main():
     print("Extracting features (Test split)...")
     feats, views, seq_types, labels = model_obj.transform('test', batch_size=1)
     
-    # Convert labels to original PIDs and ints for metrics
-    unique_pids = sorted(list(set(labels)))
-    pid_to_idx = {pid: i for i, pid in enumerate(unique_pids)}
-    labels_idx = torch.tensor([pid_to_idx[l] for l in labels])
+    # Convert labels to ints for metrics directly
+    labels_idx = torch.tensor([int(l) for l in labels])
     
     # views can serve as cam_id for mAP calculation
     # We need views as integers
