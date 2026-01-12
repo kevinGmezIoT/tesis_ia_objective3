@@ -6,7 +6,7 @@ from .basic_blocks import SetBlock, BasicConv2d
 
 
 class SetNet(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, num_classes=10000):
         super(SetNet, self).__init__()
         self.hidden_dim = hidden_dim
         self.batch_frame = None
@@ -32,7 +32,13 @@ class SetNet(nn.Module):
         self.fc_bin = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.zeros(sum(self.bin_num) * 2, 128, hidden_dim)))])
+                    torch.zeros(sum(self.bin_num), _set_channels[2], self.hidden_dim)))
+            for _ in range(2)])
+        
+        # Classification head for ID supervision
+        # train_pid_num should be passed or used. SetNet currently doesn't take it in __init__.
+        # I'll add a default or use a standard value, but better to update __init__ signature.
+        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_num), num_classes) # Placeholder size, will fix
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Conv1d)):
@@ -119,5 +125,8 @@ class SetNet(nn.Module):
 
         # L2 Normalization
         feature = nn.functional.normalize(feature, p=2, dim=-1)
+        
+        # Logits for CrossEntropy
+        logits = self.fc_id(feature.view(n, -1))
 
-        return feature, None
+        return feature, logits

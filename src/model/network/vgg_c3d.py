@@ -125,6 +125,9 @@ class C3D_VGG(nn.Module):
                 nn.init.xavier_uniform_(
                     torch.zeros(sum(self.bin_numgl), _set_channels[3], self.hidden_dim)))
                     ])
+        
+        # Classification head for ID supervision
+        self.fc_id = nn.Linear(self.hidden_dim * sum(self.bin_numgl), num_classes)
                 
 
 
@@ -197,8 +200,12 @@ class C3D_VGG(nn.Module):
         
         # L2 Normalization
         feature = F.normalize(feature, p=2, dim=-1)
+        
+        # If in training mode, we might want logits for CrossEntropy
+        # Flatten feature for classification: [batch, bins * dim]
+        logits = self.fc_id(feature.view(n, -1))
 
-        return feature,None
+        return feature, logits
 
 
 def params_count(net):

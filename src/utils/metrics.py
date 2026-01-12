@@ -27,19 +27,23 @@ def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids, filter_sam
     all_ap = []
     all_cmc = []
     
+    # Check if query and gallery are likely the same set
+    is_self_gallery = (num_q == num_g and torch.equal(q_feat, g_feat))
+
     for i in range(num_q):
-        # Re-ID evaluation protocol: filter out gallery samples 
-        # from the same camera and same identity as the query (optional)
+        # Re-ID evaluation protocol: filter out samples 
         if filter_same_cam:
+            # Standard Re-ID: exclude same person + same camera
             keep = ~((g_pids[indices[i]] == q_pids[i]) & (g_camids[indices[i]] == q_camids[i]))
         else:
-            # Keep all except the query sample itself (trivial match)
-            # Assuming query and gallery are same indices
-            # If not same set, this might need refinement
+            # Gait3D context: we want to match cycles of the same person
+            # But we MUST exclude the query sequence itself if it's in the gallery
             keep = np.ones(num_g, dtype=bool)
-            # Find index of query in gallery if applicable
-            # For simplicity, if num_q == num_g and sets are same:
-            # keep[indices[i] == i] = False
+            if is_self_gallery:
+                # Find the position of the query index 'i' in the sorted 'indices[i]'
+                # and mark it as False in 'keep'
+                # The query is at indices[i] where value == i
+                keep[indices[i] == i] = False
         
         y_true = matches[i][keep]
         # Score is negative distance (higher similarity = higher score)
@@ -53,7 +57,6 @@ def calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids, filter_sam
         all_ap.append(ap)
         
         # Rank-1 (CMC)
-        # Check if the first 'keep' match is correct
         if y_true[0] == 1:
             all_cmc.append(1)
         else:

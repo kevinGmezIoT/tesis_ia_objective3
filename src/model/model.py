@@ -82,7 +82,7 @@ class Model:
 
         print(train_pid_num)
         if self.model_name == "SetNet":
-            self.m_resnet = SetNet(hidden_dim=self.hidden_dim)
+            self.m_resnet = SetNet(hidden_dim=self.hidden_dim, num_classes=self.train_pid_num)
         elif self.model_name == "Vgg_c3d":
             self.m_resnet = vgg_c3d.c3d_vgg_Fusion(hidden_dim=self.hidden_dim, num_classes=self.train_pid_num)
         else:
@@ -106,6 +106,12 @@ class Model:
 
         self.optimizer = optim.Adam([
             {'params': self.m_resnet.parameters()}], lr=self.lr)
+        
+        # Loss function for classification head
+        self.id_loss = nn.CrossEntropyLoss()
+        
+        # Learning Rate scheduler (reduce learning rate periodically)
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
 
         print(self.optimizer)
 
@@ -223,7 +229,19 @@ class Model:
         train_label_set = list(self.train_source.label_set)
         train_label_set.sort()
         _time1 = datetime.now()
+        
+        # Track previous epoch to step scheduler
+        last_epoch = 0
+        
         for seq, view, seq_type, label, batch_frame in train_loader:
+            # Step the scheduler based on iterations or epochs
+            # Here we follow your epoch-based logic
+            current_epoch = self.restore_iter // len(train_loader)
+            if current_epoch > last_epoch:
+                self.scheduler.step()
+                last_epoch = current_epoch
+                print(f"\nStep LR Scheduler: New LR = {self.optimizer.param_groups[0]['lr']}")
+
             # self.exp_lr_scheduler.step()
             self.restore_iter += 1
             self.optimizer.zero_grad()
@@ -253,8 +271,8 @@ class Model:
 
             targets = Variable(targets)
             seq = Variable(seq)
-            # SetNet returns (n, bins, dim)
-            triplet_feature, _ = self.m_resnet(seq)
+            # SetNet returns (n, bins, dim) and logits for classification
+            triplet_feature, logits = self.m_resnet(seq)
             
             #--------------tri-------------------------
             # triplet_feature: [batch, bins, dim]
@@ -265,11 +283,18 @@ class Model:
             (full_loss_metric, hard_loss_metric, mean_dist, full_loss_num, accuracy
              ) = self.triplet_loss(triplet_feature, triplet_label)
 
-
+            #--------------Combined Loss----------------
+            # Triplet part
             if self.hard_or_full_trip == 'hard':
-                loss = hard_loss_metric.mean()
+                t_loss = hard_loss_metric.mean()
             elif self.hard_or_full_trip == 'full':
-                loss = full_loss_metric.mean()
+                t_loss = full_loss_metric.mean()
+            
+            # Classification part (ID loss)
+            c_loss = self.id_loss(logits, targets)
+            
+            # Final combined loss
+            loss = t_loss + c_loss
 
 
             self.hard_loss_metric.append(hard_loss_metric.mean().data.cpu().numpy())
@@ -298,9 +323,9 @@ class Model:
                 print(', hard_loss_metric={0:.8f}'.format(np.mean(self.hard_loss_metric)), end='')
                 print(', full_loss_metric={0:.8f}'.format(np.mean(self.full_loss_metric)), end='')
                 print(', full_loss_num={0:.8f}'.format(np.mean(self.full_loss_num)), end='')
-                self.mean_dist = np.mean(self.dist_list)
                 print(', mean_dist={0:.8f}'.format(self.mean_dist), end='')
                 print(', acc={0:.4f}'.format(np.mean(self.accuracy_list)), end='')
+                print(', id_loss={0:.4f}'.format(c_loss.item()), end='') # New: show ID loss
                 # print(', cse_loss_num={0:.8f}'.format(np.mean(self.losscse)), end='')
                 print(', lr=%f' % self.optimizer.param_groups[0]['lr'], end='')
                 print(', hard or full=%r' % self.hard_or_full_trip)
