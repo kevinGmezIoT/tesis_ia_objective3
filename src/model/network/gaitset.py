@@ -46,12 +46,12 @@ class SetNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Conv1d)):
-                nn.init.xavier_uniform_(m.weight.data)
+                nn.init.kaiming_normal_(m.weight.data, mode='fan_out', nonlinearity='leaky_relu')
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight.data)
                 nn.init.constant(m.bias.data, 0.0)
             elif isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
-                nn.init.normal(m.weight.data, 1.0, 0.02)
+                nn.init.constant(m.weight.data, 1.0)
                 nn.init.constant(m.bias.data, 0.0)
 
     def frame_max(self, x):
@@ -137,7 +137,7 @@ class SetNet(nn.Module):
         # [batch, bins, dim] * [bins, dim, num_classes] -> [batch, bins, num_classes]
         logits = torch.einsum('nbd,bdc->nbc', feat_bn, self.fc_id[0])
 
-        # L2 Normalization ONLY for the Triplet branch (Disabled for Gait3D improvement)
-        # feature = nn.functional.normalize(feature, p=2, dim=-1)
+        # L2 Normalization RESTORED for Triplet branch stability
+        feature = nn.functional.normalize(feature, p=2, dim=-1)
 
         return feature, logits

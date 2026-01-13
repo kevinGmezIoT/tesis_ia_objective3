@@ -16,10 +16,10 @@ def gem(x, p=6.5, eps=1e-6):
 
 class GeM(nn.Module):
 
-    def __init__(self, p=6.5, eps=1e-6):
+    def __init__(self, p=3.0, eps=1e-6):
         super(GeM,self).__init__()
         self.p = Parameter(torch.ones(1)*p)
-        self.p.requires_grad = False # Freeze p to prevent NaN during training
+        self.p.requires_grad = True # Allow learning GeM power
         self.eps = eps
 
     def forward(self, x):
@@ -142,14 +142,13 @@ class C3D_VGG(nn.Module):
 
         self.relu = nn.ReLU()
         for m in self.modules():
-            # print('---')
             if isinstance(m, (nn.Conv3d, nn.Conv2d, nn.Conv1d)):
-                nn.init.xavier_uniform_(m.weight.data)
+                nn.init.kaiming_normal_(m.weight.data, mode='fan_out', nonlinearity='leaky_relu')
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight.data)
                 nn.init.constant_(m.bias.data, 0.0)
             elif isinstance(m, (nn.BatchNorm3d, nn.BatchNorm2d, nn.BatchNorm1d)):
-                nn.init.normal_(m.weight.data, 1.0, 0.02)
+                nn.init.constant_(m.weight.data, 1.0)
                 nn.init.constant_(m.bias.data, 0.0)
 
     def forward(self, x):
@@ -218,8 +217,8 @@ class C3D_VGG(nn.Module):
         # [batch, bins, dim] * [bins, dim, num_classes] -> [batch, bins, num_classes]
         logits = torch.einsum('nbd,bdc->nbc', feat_bn, self.fc_id[0])
 
-        # L2 Normalization ONLY for the Triplet branch (Disabled for Gait3D improvement)
-        # feature = F.normalize(feature, p=2, dim=-1)
+        # L2 Normalization RESTORED for Triplet branch stability
+        feature = F.normalize(feature, p=2, dim=-1)
 
         return feature, logits
 
