@@ -64,7 +64,7 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
         # Global ID Loss (CrossEntropy)
         if logits.dim() == 3:
             n_b, n_bins, n_c = logits.size()
-            logits_flat = logits.view(-1, n_c)
+            logits_flat = logits.reshape(-1, n_c)
             targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
             id_loss = model_obj.id_loss(logits_flat, targets_expanded)
         else:
@@ -134,7 +134,7 @@ def validate(model_obj, val_loader, epoch, total_epochs):
             
             if logits.dim() == 3:
                 n_b, n_bins, n_c = logits.size()
-                logits_flat = logits.view(-1, n_c)
+                logits_flat = logits.reshape(-1, n_c)
                 targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
                 id_loss = model_obj.id_loss(logits_flat, targets_expanded)
             else:

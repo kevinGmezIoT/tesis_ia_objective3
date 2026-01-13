@@ -286,7 +286,7 @@ class Model:
             # We calculate CE loss for each bin and then average
             if logits.dim() == 3:
                 n_b, n_bins, n_c = logits.size()
-                logits_flat = logits.view(-1, n_c)
+                logits_flat = logits.reshape(-1, n_c)
                 targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
                 c_loss = self.id_loss(logits_flat, targets_expanded)
             else:
