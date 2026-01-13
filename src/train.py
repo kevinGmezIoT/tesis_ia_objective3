@@ -62,16 +62,25 @@ def train_epoch(model_obj, train_loader, epoch, total_epochs):
             t_loss = full_loss_metric.mean()
             
         # Global ID Loss (CrossEntropy)
-        id_loss = model_obj.id_loss(logits, targets)
+        if logits.dim() == 3:
+            n_b, n_bins, n_c = logits.size()
+            logits_flat = logits.view(-1, n_c)
+            targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
+            id_loss = model_obj.id_loss(logits_flat, targets_expanded)
+        else:
+            id_loss = model_obj.id_loss(logits, targets)
         
         # Combined Loss: We can weight ID loss a bit higher initially
         loss = t_loss + id_loss
         
-        if loss > 1e-9:
+        if torch.isfinite(loss):
             loss.backward()
             # Gradient clipping to prevent explosion (NaN)
             torch.nn.utils.clip_grad_norm_(model_obj.m_resnet.parameters(), max_norm=5.0)
             model_obj.optimizer.step()
+        else:
+            print(f"Warning: Non-finite loss (t_loss: {t_loss.item():.4f}, id_loss: {id_loss.item():.4f}). Skipping step.")
+            model_obj.optimizer.zero_grad()
         
         epoch_metrics['loss'].append(loss.item())
         epoch_metrics['t_loss'].append(t_loss.item())
@@ -133,8 +142,11 @@ def validate(model_obj, val_loader, epoch, total_epochs):
                 
             loss = t_loss + id_loss
             
-            val_metrics['loss'].append(loss.item())
-            val_metrics['acc'].append(accuracy.mean().item())
+            if torch.isfinite(loss):
+                val_metrics['loss'].append(loss.item())
+                val_metrics['acc'].append(accuracy.mean().item())
+            else:
+                print(f"Warning: Non-finite validation loss at epoch {epoch+1}. Skipping metrics for this batch.")
             pbar.set_postfix({'loss': f"{np.mean(val_metrics['loss']):.4f}"})
             
     return np.mean(val_metrics['loss']), np.mean(val_metrics['acc'])

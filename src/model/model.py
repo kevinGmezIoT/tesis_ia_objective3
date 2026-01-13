@@ -171,7 +171,7 @@ class Model:
         seqs1 = []
         count = 1
         for sq in range(len(seqs)):
-            seqs1.append(Order_select_frame(sq))
+            seqs1.append(select_frame(sq))
             count +=1
         seqs = seqs1
 

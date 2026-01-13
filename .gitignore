@@ -1,5 +1,6 @@
 outputs
 inputs
+GaitGL-main
 __pycache__/
 runs/
 .agent/

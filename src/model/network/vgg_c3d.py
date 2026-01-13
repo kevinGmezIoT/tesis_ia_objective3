@@ -223,8 +223,8 @@ class C3D_VGG(nn.Module):
         logits = torch.matmul(feat_bn.unsqueeze(2), self.fc_id[0].unsqueeze(0))
         logits = logits.squeeze(2) # [batch, bins, num_classes]
 
-        # L2 Normalization ONLY for the Triplet branch
-        feature = F.normalize(feature, p=2, dim=-1)
+        # L2 Normalization ONLY for the Triplet branch (Disabled for Gait3D improvement)
+        # feature = F.normalize(feature, p=2, dim=-1)
 
         return feature, logits
 
