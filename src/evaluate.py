@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--checkpoint", type=str, required=True)
+    parser.add_argument("--max_ids", type=int, default=0, help="Limit number of IDs for debugging (match train)")
     args = parser.parse_args()
     
     cfg = load_config(args.config)
@@ -32,6 +33,28 @@ def main():
         cfg["index_csv"],
         cfg["resolution"]
     )
+    
+    if args.max_ids > 0:
+        print(f"DEBUG MODE: Limiting evaluation to {args.max_ids} IDs")
+        # We assume IDs are sorted lexicographically as in train.py
+        selected_ids = sorted(list(train_src.label_set))[:args.max_ids]
+        
+        def filter_src(src, ids):
+            if src is None: return None
+            indices = [i for i, label in enumerate(src.label) if label in ids]
+            src.label = [src.label[i] for i in indices]
+            src.seq_dir = [src.seq_dir[i] for i in indices]
+            src.seq_type = [src.seq_type[i] for i in indices]
+            src.view = [src.view[i] for i in indices]
+            src.label_set = set(src.label)
+            src.data_size = len(src.label)
+            # Re-init index_dict for internal consistency
+            src.__init__(src.seq_dir, src.label, src.seq_type, src.view, src.cache, src.resolution)
+            return src
+
+        train_src = filter_src(train_src, selected_ids)
+        test_src = filter_src(test_src, selected_ids)
+        val_src = filter_src(val_src, selected_ids)
     
     # We use the Model class to initialize the architecture
     # but we'll use evaluate mode

@@ -155,6 +155,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train GaitGL with SetNet')
     parser.add_argument('--config', type=str, default='src/configs/config_train.yaml')
     parser.add_argument('--resume_iter', type=int, default=0)
+    parser.add_argument('--max_ids', type=int, default=0, help='Limit number of IDs for debugging')
     args = parser.parse_args()
 
     conf = load_config(args.config)
@@ -170,6 +171,26 @@ def main():
         conf["index_csv"],
         conf["resolution"]
     )
+
+    if args.max_ids > 0:
+        print(f"DEBUG MODE: Limiting training to {args.max_ids} IDs")
+        selected_ids = sorted(list(train_src.label_set))[:args.max_ids]
+        
+        def filter_src(src, ids):
+            if src is None: return None
+            indices = [i for i, label in enumerate(src.label) if label in ids]
+            src.label = [src.label[i] for i in indices]
+            src.seq_dir = [src.seq_dir[i] for i in indices]
+            src.seq_type = [src.seq_type[i] for i in indices]
+            src.view = [src.view[i] for i in indices]
+            src.label_set = set(src.label)
+            src.data_size = len(src.label)
+            # Rebuild index_dict
+            src.__init__(src.seq_dir, src.label, src.seq_type, src.view, src.cache, src.resolution)
+            return src
+
+        train_src = filter_src(train_src, selected_ids)
+        val_src = filter_src(val_src, selected_ids)
 
     train_pid_num = len(train_src.label_set) if train_src else 0
     print(f"Initializing model for {train_pid_num} IDs...")
