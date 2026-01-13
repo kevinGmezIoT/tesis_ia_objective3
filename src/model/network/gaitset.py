@@ -133,8 +133,9 @@ class SetNet(nn.Module):
         feat_bn = self.bn(feat_flat)
         feat_bn = feat_bn.view(n_b, n_bins, n_dim)
         
-        logits = torch.matmul(feat_bn.unsqueeze(2), self.fc_id[0].unsqueeze(0))
-        logits = logits.squeeze(2) # [batch, bins, num_classes]
+        # Optimize memory by using einsum instead of broadcasted matmul
+        # [batch, bins, dim] * [bins, dim, num_classes] -> [batch, bins, num_classes]
+        logits = torch.einsum('nbd,bdc->nbc', feat_bn, self.fc_id[0])
 
         # L2 Normalization ONLY for the Triplet branch (Disabled for Gait3D improvement)
         # feature = nn.functional.normalize(feature, p=2, dim=-1)

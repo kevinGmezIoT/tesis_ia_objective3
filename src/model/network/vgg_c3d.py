@@ -208,20 +208,15 @@ class C3D_VGG(nn.Module):
         
         # Per-Bin Classification (SOTA GaitGL style)
         # feature: [batch, bins, dim]
-        # fc_id[0]: [bins, dim, num_classes]
-        # We want logits: [batch, bins, num_classes]
-        
-        # BNNeck before classification
-        # We apply BN per bin or on pooled? Usually per bin for better local alignment.
-        # Let's use a 1D BN over the flattened [batch * bins, dim] for efficiency
+        # self.fc_id[0]: [bins, dim, num_classes]
         n_b, n_bins, n_dim = feature.size()
         feat_flat = feature.view(-1, n_dim)
         feat_bn = self.bn(feat_flat)
         feat_bn = feat_bn.view(n_b, n_bins, n_dim)
         
-        # Batch matrix multiplication: [batch, bins, 1, dim] @ [1, bins, dim, classes] -> [batch, bins, 1, classes]
-        logits = torch.matmul(feat_bn.unsqueeze(2), self.fc_id[0].unsqueeze(0))
-        logits = logits.squeeze(2) # [batch, bins, num_classes]
+        # Optimize memory by using einsum instead of broadcasted matmul
+        # [batch, bins, dim] * [bins, dim, num_classes] -> [batch, bins, num_classes]
+        logits = torch.einsum('nbd,bdc->nbc', feat_bn, self.fc_id[0])
 
         # L2 Normalization ONLY for the Triplet branch (Disabled for Gait3D improvement)
         # feature = F.normalize(feature, p=2, dim=-1)
