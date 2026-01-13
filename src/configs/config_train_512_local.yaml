@@ -1,6 +1,6 @@
 # Experiment configuration
-save_name: "vggc3d_gait3d_experiment_512_2"
-model_name: "Vgg_c3d"
+save_name: "setnet_gait3d_experiment_512_2"
+model_name: "SetNet"
 work_dir: "runs/checkpoints"
 plots_dir: "runs/plots"
 
@@ -21,8 +21,8 @@ hard_or_full_trip: "hard"
 margin: 0.5
 
 # Training hyperparameters
-lr: 0.0003
-epochs: 30
+lr: 0.0001
+epochs: 60
 batch_P: 8
 batch_K: 8
 total_iter: 200000

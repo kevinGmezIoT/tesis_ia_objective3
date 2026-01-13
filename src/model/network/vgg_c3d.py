@@ -120,7 +120,7 @@ class C3D_VGG(nn.Module):
         self.Gem = GeM()
 
 
-        self.bin_numgl = [32*2]
+        self.bin_numgl = [1, 2, 4, 8, 16] # Pyramid of bins for robustness
         self.fc_bin = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(
@@ -128,9 +128,8 @@ class C3D_VGG(nn.Module):
                     ])
         
         # BNNeck: BatchNorm before classification helps convergence
-        self.bn = nn.BatchNorm1d(self.hidden_dim) # For pooled features
-        # Per-Bin Classification Head for ID supervision
-        # Each bin has its own classifier to force local feature discrimination
+        self.bn = nn.BatchNorm1d(self.hidden_dim) 
+        # Per-Bin Classification Head
         self.fc_id = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(

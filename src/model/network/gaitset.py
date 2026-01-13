@@ -29,11 +29,14 @@ class SetNet(nn.Module):
         self.gl_pooling = nn.MaxPool2d(2)
 
         self.bin_num = [1, 2, 4, 8, 16]
+        # Total bins = sum(bin_num) * 2 (because we cat features from 'x' and 'gl')
+        total_bins = sum(self.bin_num) * 2
+        
         self.fc_bin = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.zeros(sum(self.bin_num), _set_channels[2], self.hidden_dim)))
-            for _ in range(2)])
+                    torch.zeros(total_bins, _set_channels[2], self.hidden_dim)))
+        ])
         
         # BNNeck
         self.bn = nn.BatchNorm1d(self.hidden_dim)
@@ -41,7 +44,7 @@ class SetNet(nn.Module):
         self.fc_id = nn.ParameterList([
             nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.zeros(sum(self.bin_num) * 2, self.hidden_dim, num_classes)))
+                    torch.zeros(total_bins, self.hidden_dim, num_classes)))
         ])
 
         for m in self.modules():
@@ -49,10 +52,10 @@ class SetNet(nn.Module):
                 nn.init.kaiming_normal_(m.weight.data, mode='fan_out', nonlinearity='leaky_relu')
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight.data)
-                nn.init.constant(m.bias.data, 0.0)
+                nn.init.constant_(m.bias.data, 0.0)
             elif isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
-                nn.init.constant(m.weight.data, 1.0)
-                nn.init.constant(m.bias.data, 0.0)
+                nn.init.constant_(m.weight.data, 1.0)
+                nn.init.constant_(m.bias.data, 0.0)
 
     def frame_max(self, x):
         if self.batch_frame is None:
