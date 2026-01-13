@@ -122,7 +122,15 @@ def validate(model_obj, val_loader, epoch, total_epochs):
              ) = model_obj.triplet_loss(triplet_feature, triplet_label)
             
             t_loss = hard_loss_metric.mean() if model_obj.hard_or_full_trip == 'hard' else full_loss_metric.mean()
-            id_loss = model_obj.id_loss(logits, targets)
+            
+            if logits.dim() == 3:
+                n_b, n_bins, n_c = logits.size()
+                logits_flat = logits.view(-1, n_c)
+                targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
+                id_loss = model_obj.id_loss(logits_flat, targets_expanded)
+            else:
+                id_loss = model_obj.id_loss(logits, targets)
+                
             loss = t_loss + id_loss
             
             val_metrics['loss'].append(loss.item())

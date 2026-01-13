@@ -37,8 +37,12 @@ class SetNet(nn.Module):
         
         # BNNeck
         self.bn = nn.BatchNorm1d(self.hidden_dim)
-        # Classification head for ID supervision
-        self.fc_id = nn.Linear(self.hidden_dim, num_classes)
+        # Per-Bin Classification Head
+        self.fc_id = nn.ParameterList([
+            nn.Parameter(
+                nn.init.xavier_uniform_(
+                    torch.zeros(sum(self.bin_num) * 2, self.hidden_dim, num_classes)))
+        ])
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Conv1d)):
@@ -123,10 +127,14 @@ class SetNet(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
 
-        # Global feature for classification (BNNeck style)
-        feat_global = feature.mean(1)
-        feat_bn = self.bn(feat_global)
-        logits = self.fc_id(feat_bn)
+        # Per-Bin Classification (BNNeck style)
+        n_b, n_bins, n_dim = feature.size()
+        feat_flat = feature.view(-1, n_dim)
+        feat_bn = self.bn(feat_flat)
+        feat_bn = feat_bn.view(n_b, n_bins, n_dim)
+        
+        logits = torch.matmul(feat_bn.unsqueeze(2), self.fc_id[0].unsqueeze(0))
+        logits = logits.squeeze(2) # [batch, bins, num_classes]
 
         # L2 Normalization ONLY for the Triplet branch
         feature = nn.functional.normalize(feature, p=2, dim=-1)

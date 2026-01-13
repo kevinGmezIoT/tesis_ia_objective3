@@ -60,6 +60,8 @@ class DataSet(tordata.Dataset):
             a = self.img2xarray(
                 path).astype('float32') / 255.0  
             return a          
+
+    def __getitem__(self, index):
         # Random Horizontal Flip Augmentation (Sequence-level)
         # Only during training (we can check if 'train' is in the path or just assume based on usage)
         do_flip = False
@@ -96,8 +98,11 @@ class DataSet(tordata.Dataset):
                 # Read as grayscale directly
                 img = cv2.imread(img_p, cv2.IMREAD_GRAYSCALE)
                 if img is not None:
-                    # Resize to the required resolution
-                    img = cv2.resize(img, (self.resolution, self.resolution))
+                    # Resize to the required resolution (Height, Width)
+                    # For Gait3D/GaitGL, standard is 64x44. 
+                    # If resolution is 64, width should be 44.
+                    width = int(self.resolution * 44 / 64)
+                    img = cv2.resize(img, (width, self.resolution))
                     frame_list.append(img)
 
         num_list = list(range(len(frame_list)))

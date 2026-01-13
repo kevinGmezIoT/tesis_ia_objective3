@@ -129,8 +129,13 @@ class C3D_VGG(nn.Module):
         
         # BNNeck: BatchNorm before classification helps convergence
         self.bn = nn.BatchNorm1d(self.hidden_dim) # For pooled features
-        # Classification head for ID supervision
-        self.fc_id = nn.Linear(self.hidden_dim, num_classes)
+        # Per-Bin Classification Head for ID supervision
+        # Each bin has its own classifier to force local feature discrimination
+        self.fc_id = nn.ParameterList([
+            nn.Parameter(
+                nn.init.xavier_uniform_(
+                    torch.zeros(sum(self.bin_numgl), self.hidden_dim, num_classes)))
+        ])
                 
 
 
@@ -201,14 +206,24 @@ class C3D_VGG(nn.Module):
         feature = feature.matmul(self.fc_bin[0])
         feature = feature.permute(1, 0, 2).contiguous()
         
-        # Global feature for classification (BNNeck style)
-        # feature: [batch, bins, dim] -> Mean pool across bins -> [batch, dim]
-        feat_global = feature.mean(1)
-        feat_bn = self.bn(feat_global)
-        logits = self.fc_id(feat_bn)
+        # Per-Bin Classification (SOTA GaitGL style)
+        # feature: [batch, bins, dim]
+        # fc_id[0]: [bins, dim, num_classes]
+        # We want logits: [batch, bins, num_classes]
+        
+        # BNNeck before classification
+        # We apply BN per bin or on pooled? Usually per bin for better local alignment.
+        # Let's use a 1D BN over the flattened [batch * bins, dim] for efficiency
+        n_b, n_bins, n_dim = feature.size()
+        feat_flat = feature.view(-1, n_dim)
+        feat_bn = self.bn(feat_flat)
+        feat_bn = feat_bn.view(n_b, n_bins, n_dim)
+        
+        # Batch matrix multiplication: [batch, bins, 1, dim] @ [1, bins, dim, classes] -> [batch, bins, 1, classes]
+        logits = torch.matmul(feat_bn.unsqueeze(2), self.fc_id[0].unsqueeze(0))
+        logits = logits.squeeze(2) # [batch, bins, num_classes]
 
         # L2 Normalization ONLY for the Triplet branch
-        # This prevents the classifier from getting weak gradients
         feature = F.normalize(feature, p=2, dim=-1)
 
         return feature, logits

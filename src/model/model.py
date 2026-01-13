@@ -282,7 +282,15 @@ class Model:
                 t_loss = full_loss_metric.mean()
             
             # Classification part (ID loss)
-            c_loss = self.id_loss(logits, targets)
+            # logits: [batch, bins, num_classes], targets: [batch]
+            # We calculate CE loss for each bin and then average
+            if logits.dim() == 3:
+                n_b, n_bins, n_c = logits.size()
+                logits_flat = logits.view(-1, n_c)
+                targets_expanded = targets.unsqueeze(1).repeat(1, n_bins).view(-1)
+                c_loss = self.id_loss(logits_flat, targets_expanded)
+            else:
+                c_loss = self.id_loss(logits, targets)
             
             # Final combined loss
             loss = t_loss + c_loss
