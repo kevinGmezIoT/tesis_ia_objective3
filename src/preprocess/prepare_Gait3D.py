@@ -109,98 +109,125 @@ def main():
     print(f"\nProcesando {len(person_dirs)} IDs en {sil_raw_root} ...")
 
     for pid_dir in tqdm(person_dirs, desc="Processing IDs", unit="id"):
-        # Estructura: 2D_Silhouettes / {ID} / {cam_video} / {seq}
+        # Estructura original Gait3D: 2D_Silhouettes / {ID} / {camidX_videoidY} / {seqZ}
         person_id = pid_dir.name
         
-        # Iterar por cam_video (ej: camid0_videoid2)
-        video_dirs = sorted([v for v in pid_dir.iterdir() if v.is_dir()], key=lambda v: natural_sort_key(v.name))
+        # Explorar todas las carpetas de escenas (camidX_videoidY)
+        all_scene_dirs = sorted([v for v in pid_dir.iterdir() if v.is_dir()], key=lambda v: natural_sort_key(v.name))
         
-        for video_dir in video_dirs:
-            scene = video_dir.name # camid0_videoid2
+        # Agrupar por video_id para cumplir jerarquía deseada (Video padre de Cámara)
+        video_groups = {}
+        for s_dir in all_scene_dirs:
+            m = re.match(r"camid(\d+)_videoid(\d+)", s_dir.name)
+            if not m:
+                continue
+            c_num, v_num = int(m.group(1)), int(m.group(2))
+            if v_num not in video_groups:
+                video_groups[v_num] = {}
+            video_groups[v_num][c_num] = s_dir
+        
+        # Procesar jerárquicamente: Video -> Cámara
+        for v_num in sorted(video_groups.keys()):
+            video_id = f"v{v_num:03d}"
             
-            # Iterar por seq (ej: seq0)
-            seq_dirs = sorted([s for s in video_dir.iterdir() if s.is_dir()], key=lambda s: natural_sort_key(s.name))
-            
-            for seq_dir in seq_dirs:
-                seq_id_name = seq_dir.name # seq0
+            for c_num in sorted(video_groups[v_num].keys()):
+                cam_id = f"c{c_num:03d}"
+                scene_dir = video_groups[v_num][c_num]
+                scene_name = scene_dir.name
                 
-                # Obtener imágenes
-                imgs = sorted(seq_dir.glob("*.png"), key=lambda p: natural_sort_key(p.name))
-                if not imgs:
-                    continue
+                # Contador de ciclos continuo para esta cámara dentro de este video
+                cycle_global_idx = 1
                 
-                frames_list = []
-                for img_path in imgs:
-                    fn = parse_gait3d_filename(img_path.name)
-                    if fn is not None:
-                        frames_list.append((fn, img_path))
+                # Iterar por secuencias (seq0, seq1, ...)
+                seq_dirs = sorted([s for s in scene_dir.iterdir() if s.is_dir()], key=lambda s: natural_sort_key(s.name))
                 
-                if not frames_list:
-                    continue
-                
-                cycles = build_cycles_from_sorted_frames(
-                    frames=frames_list,
-                    seq_length=args.sequence_len,
-                    overlap=args.overlap,
-                )
-                
-                if not cycles:
-                    continue
-
-                for cyc_idx, cycle in enumerate(cycles, start=1):
-                    total_cycles += 1
-                    cycle_dirname = f"cycle{cyc_idx:04d}"
-                    dst_cycle_dir = sil_out_root / person_id / scene / seq_id_name / cycle_dirname
-
-                    if args.skip_existing_cycles and dst_cycle_dir.exists():
-                        if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
-                            break
+                for seq_dir in seq_dirs:
+                    seq_id_name = seq_dir.name # seq0
+                    
+                    # Obtener imágenes
+                    imgs = sorted(seq_dir.glob("*.png"), key=lambda p: natural_sort_key(p.name))
+                    if not imgs:
+                        continue
+                    
+                    frames_list = []
+                    for img_path in imgs:
+                        fn = parse_gait3d_filename(img_path.name)
+                        if fn is not None:
+                            frames_list.append((fn, img_path))
+                    
+                    if not frames_list:
+                        continue
+                    
+                    cycles = build_cycles_from_sorted_frames(
+                        frames=frames_list,
+                        seq_length=args.sequence_len,
+                        overlap=args.overlap,
+                    )
+                    
+                    if not cycles:
                         continue
 
-                    frame_nums, dst_paths = copy_cycle_silhouettes(
-                        cycle=cycle,
-                        dst_cycle_dir=dst_cycle_dir,
-                        overwrite=args.overwrite,
-                    )
+                    for cycle in cycles:
+                        total_cycles += 1
+                        cycle_dirname = f"cycle{cycle_global_idx:04d}"
+                        # Nueva jerarquía: ID / video / cam / cycle
+                        dst_cycle_dir = sil_out_root / person_id / video_id / cam_id / cycle_dirname
 
-                    sequence_id = f"{person_id}_{scene}_{seq_id_name}_cyc{cyc_idx:04d}"
+                        if args.skip_existing_cycles and dst_cycle_dir.exists():
+                            if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
+                                break
+                            cycle_global_idx += 1
+                            continue
 
-                    sequences_rows.append({
-                        "sequence_id": sequence_id,
-                        "person_global_id": person_id,
-                        "dataset": "Gait3D",
-                        "scene": scene,
-                        "seq_id": seq_id_name,
-                        "cycle_index": cyc_idx,
-                        "silhouette_dir": rel_to_out_root(out_root, dst_cycle_dir),
-                        "num_frames": len(frame_nums),
-                        "frame_start": int(frame_nums[0]),
-                        "frame_end": int(frame_nums[-1]),
-                        "frame_numbers_json": json.dumps(frame_nums, ensure_ascii=False),
-                    })
+                        frame_nums, dst_paths = copy_cycle_silhouettes(
+                            cycle=cycle,
+                            dst_cycle_dir=dst_cycle_dir,
+                            overwrite=args.overwrite,
+                        )
 
-                    for fn, dst in zip(frame_nums, dst_paths):
-                        frames_rows.append({
+                        sequence_id = f"{person_id}_{video_id}_{cam_id}_{cycle_dirname}"
+
+                        sequences_rows.append({
                             "sequence_id": sequence_id,
-                            "person_global_id": person_id,
-                            "scene": scene,
-                            "seq_id": seq_id_name,
-                            "cycle_index": cyc_idx,
-                            "frame_number": int(fn),
-                            "silhouette_path": rel_to_out_root(out_root, dst),
+                            "person_id": person_id,
+                            "dataset": "Gait3D",
+                            "scene": scene_name,
+                            "cam_id": cam_id,
+                            "video_id": video_id,
+                            "seq_id": seq_id_name, # Mantenemos seq_id original como metadato
+                            "cycle_index": cycle_global_idx,
+                            "silhouette_dir": rel_to_out_root(out_root, dst_cycle_dir),
+                            "num_frames": len(frame_nums),
+                            "frame_start": int(frame_nums[0]),
+                            "frame_end": int(frame_nums[-1]),
+                            "frame_numbers_json": json.dumps(frame_nums, ensure_ascii=False),
                         })
+
+                        for fn, dst in zip(frame_nums, dst_paths):
+                            frames_rows.append({
+                                "sequence_id": sequence_id,
+                                "person_id": person_id,
+                                "cam_id": cam_id,
+                                "video_id": video_id,
+                                "seq_id": seq_id_name,
+                                "cycle_index": cycle_global_idx,
+                                "frame_number": int(fn),
+                                "silhouette_path": rel_to_out_root(out_root, dst),
+                            })
+                        
+                        cycle_global_idx += 1
+
+                        if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
+                            break
 
                     if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
                         break
-
+                
                 if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
                     break
             
             if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
                 break
-        
-        if args.limit_cycles is not None and total_cycles >= int(args.limit_cycles):
-            break
 
     if not sequences_rows:
         print("\n[WARN] No se generaron secuencias. Revisa la ruta de entrada y estructura.")

@@ -96,12 +96,12 @@ def main():
     views_idx = [view_to_idx[v] for v in views]
 
     print("Calculating metrics...")
-    # Gait3D protocol usually allows same-camera matching across cycles
-    # calculate_map(q_feat, q_pids, q_camids, g_feat, g_pids, g_camids, filter_same_cam)
+    # Con el cam_id refactorizado, ya podemos usar el protocolo Re-ID estándar (Cross-Camera)
+    # filter_same_cam=True excluye matches de la misma cámara para mayor rigor.
     mAP, rank1 = calculate_map(
         torch.from_numpy(feats), labels, views_idx,
         torch.from_numpy(feats), labels, views_idx,
-        filter_same_cam=False
+        filter_same_cam=True
     )
     
     ratio, inter, intra = calculate_inter_intra_ratio(torch.from_numpy(feats), labels_idx)

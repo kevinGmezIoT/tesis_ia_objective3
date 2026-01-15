@@ -19,8 +19,17 @@ def load_data(data_root, index_csv, resolution):
         # (originalmente podía recibir múltiples backbones/fuentes para una misma secuencia)
         seq_dirs = [[str(Path(data_root) / row['silhouette_dir'])] for _, row in subset_df.iterrows()]
         labels = subset_df['person_id'].astype(str).tolist()
-        seq_types = subset_df['cam_id'].tolist() # O 'dataset'/'scene' según prefieras
-        views = subset_df['scene'].tolist()      # Ajustar según lo que el modelo use como "view"
+        
+        # Ajuste de compatibilidad refinado:
+        # Priorizamos 'cam_id' como la VISTA para evaluación cross-camera (mAP)
+        if 'cam_id' in subset_df.columns:
+            views = subset_df['cam_id'].tolist()
+            # En Gait3D refactorizado, usamos video_id o seq_id como tipo
+            seq_types = subset_df['video_id'].tolist() if 'video_id' in subset_df.columns else subset_df['seq_id'].tolist()
+        else:
+            # Fallback para datasets antiguos o el dataset propio sin 'cam_id' (aunque suele tenerlo)
+            seq_types = subset_df['seq_id'].tolist()
+            views = subset_df['scene'].tolist()
 
         return DataSet(
             seq_dirs,
