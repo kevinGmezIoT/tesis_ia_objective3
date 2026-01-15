@@ -19,7 +19,7 @@ def load_data(data_root, index_csv, resolution):
         # (originalmente podía recibir múltiples backbones/fuentes para una misma secuencia)
         seq_dirs = [[str(Path(data_root) / row['silhouette_dir'])] for _, row in subset_df.iterrows()]
         labels = subset_df['person_id'].astype(str).tolist()
-        seq_types = subset_df['seq_id'].tolist() # O 'dataset'/'scene' según prefieras
+        seq_types = subset_df['cam_id'].tolist() # O 'dataset'/'scene' según prefieras
         views = subset_df['scene'].tolist()      # Ajustar según lo que el modelo use como "view"
 
         return DataSet(
