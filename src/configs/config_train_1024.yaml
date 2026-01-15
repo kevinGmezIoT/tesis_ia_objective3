@@ -16,15 +16,15 @@ pid_shuffle: false
 train_pid_num: 3000
 
 # Model configuration
-hidden_dim: 512  # Configurable output feature dimension
+hidden_dim: 1024  # Configurable output feature dimension
 hard_or_full_trip: "hard"
 margin: 0.5
 
 # Training hyperparameters
 lr: 0.0001
 epochs: 60
-batch_P: 16
-batch_K: 16
+batch_P: 32
+batch_K: 8
 total_iter: 200000
 restore_iter: 0
 save_iter: 100
