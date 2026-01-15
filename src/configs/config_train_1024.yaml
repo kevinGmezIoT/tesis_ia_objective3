@@ -1,0 +1,31 @@
+# Experiment configuration
+save_name: "setnet_gait3d_experiment_1024_1"
+model_name: "SetNet"
+work_dir: "runs/checkpoints"
+plots_dir: "runs/plots"
+
+# Dataset configuration
+dataset: "Gait3D"
+data_root: "/content/data/2D_Silhouettes_cycles"
+index_csv: "inputs/sequences_gait3D_split.csv"
+resolution: 64
+frame_num: 25
+num_workers: 4
+pid_num: 3000
+pid_shuffle: false
+train_pid_num: 3000
+
+# Model configuration
+hidden_dim: 512  # Configurable output feature dimension
+hard_or_full_trip: "hard"
+margin: 0.5
+
+# Training hyperparameters
+lr: 0.0001
+epochs: 60
+batch_P: 16
+batch_K: 16
+total_iter: 200000
+restore_iter: 0
+save_iter: 100
+plot_iter: 10

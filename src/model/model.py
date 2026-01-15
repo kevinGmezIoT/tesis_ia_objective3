@@ -424,6 +424,33 @@ class Model:
             'checkpoint', self.model_name,
             '{}-{:0>5}-optimizer.ptm'.format(self.save_name, restore_iter))))
 
+    def load_checkpoint(self, path):
+        """Loads a checkpoint flexible, ignoring size mismatches for fine-tuning."""
+        print(f"Loading weights from: {path}")
+        checkpoint = torch.load(path)
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+        else:
+            state_dict = checkpoint
+            
+        model_dict = self.m_resnet.state_dict()
+        
+        # Filter out keys with different shapes (useful for changing num_classes)
+        filtered_dict = {}
+        for k, v in state_dict.items():
+            if k in model_dict:
+                if v.shape == model_dict[k].shape:
+                    filtered_dict[k] = v
+                else:
+                    print(f"Skipping layer {k} due to shape mismatch: {v.shape} vs {model_dict[k].shape}")
+            else:
+                print(f"Skipping layer {k} as it is not in the current model")
+        
+        model_dict.update(filtered_dict)
+        self.m_resnet.load_state_dict(model_dict)
+        print(f"Successfully loaded {len(filtered_dict)} layers from checkpoint.")
+        return checkpoint.get('epoch', 0), checkpoint.get('history', {})
+
 
 
     def plot_history(self):
