@@ -107,15 +107,28 @@ class Model:
             self.triplet_loss = nn.DataParallel(self.triplet_loss)
             self.triplet_loss.cuda()
 
+        # Differential Learning Rate & Weight Decay Optimization
+        # Classification heads learn faster to break the initial collapse
+        backbone_params = []
+        head_params = []
+        for name, param in self.m_resnet.named_parameters():
+            if 'fc_id' in name or 'fc_bin' in name:
+                head_params.append(param)
+            else:
+                backbone_params.append(param)
+
         self.optimizer = optim.Adam([
-            {'params': self.m_resnet.parameters()}], lr=self.lr, weight_decay=5e-4)
+            {'params': backbone_params, 'lr': self.lr},
+            {'params': head_params, 'lr': self.lr * 3}
+        ], weight_decay=1e-4) # Reduced from 5e-4 to allow better feature separation
         
         # Loss function for classification head with Label Smoothing
         self.id_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
         
-        # Learning Rate scheduler (reduce learning rate periodically)
-        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.5)
+        # Learning Rate scheduler: Relaxed to give time for 4000 IDs convergence
+        self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=20, gamma=0.5)
 
+        print(f"Optimizer initialized with differential LR. Head LR: {self.lr*3}, Backbone LR: {self.lr}")
         print(self.optimizer)
 
 
